@@ -22,6 +22,8 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const SEPARATOR = ' │ ';
+const MAX_LINE_WIDTH = 100; // visible columns before the directory gets shortened
+const DIR_SHORT_FROM = 15; // names longer than this can be shortened
 const BRIDGE_PREFIX = 'claude-limits-';
 const BRIDGE_TTL_MS = 60 * 60 * 1000; // drop bridge files of long-gone sessions
 const SWEEP_EVERY_MS = 30 * 60 * 1000;
@@ -292,12 +294,20 @@ function publishLimits(data, limits) {
   }
 }
 
+/** "configuration_public" → "configu…_public": first 7 + … + last 7 characters. */
+function shortenDir(name) {
+  return name.length > DIR_SHORT_FROM ? `${name.slice(0, 7)}…${name.slice(-7)}` : name;
+}
+
+const visibleWidth = (text) => text.replace(/\u001b\[[0-9;]*m/g, '').length;
+
 function render(data) {
   const cwd = (data.workspace && data.workspace.current_dir) || data.cwd || process.cwd();
   const limits = data.rate_limits || {};
+  const dir = path.basename(cwd);
   const segments = [
     modelSegment(data.model),
-    dim(path.basename(cwd)),
+    dim(dir),
     contextSegment(data.context_window),
     cacheSegment(data.context_window && data.context_window.current_usage, data.transcript_path),
     limitSegment('5h', limits.five_hour),
@@ -305,7 +315,13 @@ function render(data) {
     gitSegment(cwd),
   ];
   publishLimits(data, data.rate_limits);
-  return segments.filter(Boolean).join(SEPARATOR);
+  let line = segments.filter(Boolean).join(SEPARATOR);
+  // Shorten the directory only when the full line would not fit.
+  if (visibleWidth(line) > MAX_LINE_WIDTH && shortenDir(dir) !== dir) {
+    segments[1] = dim(shortenDir(dir));
+    line = segments.filter(Boolean).join(SEPARATOR);
+  }
+  return line;
 }
 
 let stdin = '';
