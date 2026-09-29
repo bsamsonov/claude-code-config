@@ -1,0 +1,9 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://localhost:20128/v1",
+    "ANTHROPIC_AUTH_TOKEN": "<your-local-gateway-key>",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "<gateway-alias-for-opus>",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "<gateway-alias-for-sonnet>",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "<gateway-alias-for-haiku>"
+  }
+}

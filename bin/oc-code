@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+# oc-code — a code change by an OpenCode Go subagent in a DISPOSABLE git worktree.
+# Nothing is applied to your working branch: the result stays on branch oc/<slug>
+# and the decision (merge / drop) is left to a human (or to Claude as reviewer).
+#
+#   oc-code "fix X in module Y"                   # worktree from HEAD of the current repo
+#   oc-code -r ~/projects/foo -b main "task"      # another repo, based on main
+#   oc-code -m deepseek-v4-pro "task"             # another model
+#   oc-code -t "uv run pytest -q" "task"          # custom test command
+#   oc-code -k "task"                             # keep the worktree if tests fail
+#
+# Options:
+#   -r REPO    repository (default: current directory)
+#   -b BASE    what to branch from (default: HEAD)
+#   -m MODEL   model without the provider prefix (default: glm-5.2)
+#   -t CMD     test command (default: auto-detect uv/pytest/npm)
+#   -v VARIANT reasoning effort: minimal|high|max
+#   -k         keep the worktree even if tests are red
+#   -n         do not run tests independently (agent only)
+#
+# Output: diffstat and the worktree path. Merge by hand:
+#   git -C REPO merge oc/<slug>        # accept
+#   oc-code --drop oc/<slug>           # drop
+#
+# Env: SLUG_OVERRIDE=<name> — branch name for tasks whose first line is not ASCII.
+set -euo pipefail
+
+REPO="$PWD"
+BASE="HEAD"
+MODEL="glm-5.2"
+TEST_CMD=""
+VARIANT=""
+KEEP=0
+RUN_TESTS=1
+
+# --drop: remove the worktree and the branch
+if [[ "${1:-}" == "--drop" ]]; then
+  BR="${2:?usage: oc-code --drop oc/<slug>}"
+  WT="$HOME/.cache/oc-worktrees/${BR//\//-}"
+  git -C "$PWD" worktree remove --force "$WT" 2>/dev/null || true
+  git -C "$PWD" branch -D "$BR" 2>/dev/null || true
+  echo "✔ removed: $BR"
+  exit 0
+fi
+
+while getopts "r:b:m:t:v:knh" opt; do
+  case "$opt" in
+    r) REPO="$OPTARG" ;;
+    b) BASE="$OPTARG" ;;
+    m) MODEL="$OPTARG" ;;
+    t) TEST_CMD="$OPTARG" ;;
+    v) VARIANT="$OPTARG" ;;
+    k) KEEP=1 ;;
+    n) RUN_TESTS=0 ;;
+    h) sed -n '2,28p' "$0"; exit 0 ;;
+    *) exit 2 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+TASK="${*:-}"
+[[ -n "$TASK" ]] || { echo "usage: oc-code [-r repo] [-b base] [-m model] [-t testcmd] \"task\"" >&2; exit 2; }
+
+REPO="$(cd "$REPO" && git rev-parse --show-toplevel)"
+# Pin the base to a SHA: after the agent commits, "HEAD" inside the worktree points
+# at its commit, diff/log came out empty and the result was treated as missing.
+BASE_SHA="$(git -C "$REPO" rev-parse "$BASE")"
+
+# Dirty tree — stop. The whole point is a pinned, known base.
+if [[ -n "$(git -C "$REPO" status --porcelain)" ]]; then
+  echo "✗ working tree $REPO is not clean — commit or stash your changes" >&2
+  git -C "$REPO" status --short | head -10 >&2
+  exit 1
+fi
+
+# The slug comes ONLY from the first line of the task, without newlines:
+# otherwise a multi-line prompt produces an invalid branch name.
+SLUG=$(printf '%s' "$TASK" | head -1 | tr '\n' ' ' | tr '[:upper:]' '[:lower:]' \
+  | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-40 | sed -E 's/-+$//')
+[[ -n "${SLUG_OVERRIDE:-}" ]] && SLUG="$SLUG_OVERRIDE"
+[[ -z "$SLUG" ]] && SLUG="task"
+BRANCH="oc/${SLUG}-$(date +%m%d-%H%M)"
+WT="$HOME/.cache/oc-worktrees/${BRANCH//\//-}"
+mkdir -p "$(dirname "$WT")"
+
+# --- auto-detect the test command ---
+if [[ -z "$TEST_CMD" ]]; then
+  if   [[ -f "$REPO/uv.lock" ]];      then TEST_CMD="uv run pytest -q"
+  elif [[ -f "$REPO/pyproject.toml" ]]; then TEST_CMD="python -m pytest -q"
+  elif [[ -f "$REPO/package.json" ]]; then TEST_CMD="npm test"
+  else TEST_CMD=""; fi
+fi
+
+echo "▶ repo:     $REPO" >&2
+echo "▶ base:     $BASE → branch $BRANCH" >&2
+echo "▶ worktree: $WT" >&2
+echo "▶ model:    opencode-go/${MODEL}" >&2
+echo "▶ tests:    ${TEST_CMD:-<none>}" >&2
+
+git -C "$REPO" worktree add -b "$BRANCH" "$WT" "$BASE" >/dev/null
+
+# .venv is untracked — link the parent one, otherwise tests will not start
+for link in .venv node_modules; do
+  if [[ -e "$REPO/$link" && ! -e "$WT/$link" ]]; then
+    ln -s "$REPO/$link" "$WT/$link"
+    echo "  ↳ symlink $link → $REPO/$link" >&2
+  fi
+done
+
+LOG="$WT/.oc-code.log"
+
+PROMPT="Task: ${TASK}
+
+You are working in a disposable copy of the repository (git worktree). Editing files is
+safe, but the diff must stay minimal.
+${TEST_CMD:+The test command of this project: ${TEST_CMD}
+Run it BEFORE and AFTER your changes. Never hand in work with red tests.}
+Follow the instructions of your role (coder). Start by reading the affected code and tests."
+
+set +e
+if [[ -n "$VARIANT" ]]; then
+  opencode run --agent coder -m "opencode-go/${MODEL}" --variant "$VARIANT" \
+    --dir "$WT" "$PROMPT" 2>&1 | tee "$LOG"
+else
+  opencode run --agent coder -m "opencode-go/${MODEL}" \
+    --dir "$WT" "$PROMPT" 2>&1 | tee "$LOG"
+fi
+RC=${PIPESTATUS[0]}
+set -e
+
+echo >&2
+echo "──────── acceptance ────────" >&2
+[[ $RC -ne 0 ]] && echo "⚠ opencode exited with code $RC" >&2
+
+# --- what changed ---
+DIFFSTAT=$(git -C "$WT" diff "$BASE_SHA" --stat)
+COMMITS=$(git -C "$WT" log --oneline "$BASE_SHA".. 2>/dev/null || true)
+# Agents often leave new files untracked — that is still their work.
+# Without this, a worktree full of finished code was deleted as "empty".
+UNCOMMITTED=$(git -C "$WT" status --porcelain \
+  | grep -vE '\.oc-(code|tests)\.log|\.venv|node_modules|__pycache__|\.pytest_cache' || true)
+if [[ -n "$UNCOMMITTED" ]]; then
+  echo "▶ the agent did not commit its result — committing it" >&2
+  git -C "$WT" add -A ':!.oc-code.log' ':!.oc-tests.log' >/dev/null 2>&1 || git -C "$WT" add -A >/dev/null
+  git -C "$WT" -c user.email=oc@local -c user.name=opencode \
+    commit -qm "oc: $(printf '%s' "$TASK" | head -1 | cut -c1-72)" >/dev/null 2>&1 || true
+  DIFFSTAT=$(git -C "$WT" diff "$BASE_SHA" --stat)
+  COMMITS=$(git -C "$WT" log --oneline "$BASE_SHA".. 2>/dev/null || true)
+fi
+if [[ -z "$DIFFSTAT" && -z "$COMMITS" ]]; then
+  echo "⚠ the agent did not change any file (log: $LOG)" >&2
+  [[ $KEEP -eq 0 ]] && git -C "$REPO" worktree remove --force "$WT" && git -C "$REPO" branch -D "$BRANCH" >/dev/null 2>&1
+  exit 1
+fi
+echo "$DIFFSTAT" >&2
+[[ -n "$COMMITS" ]] && { echo "agent commits:" >&2; echo "$COMMITS" >&2; }
+
+# --- independent test run (never take the agent's word for it) ---
+TESTS_OK="skip"
+if [[ $RUN_TESTS -eq 1 && -n "$TEST_CMD" ]]; then
+  echo >&2; echo "▶ independent run: $TEST_CMD" >&2
+  set +e
+  ( cd "$WT" && eval "$TEST_CMD" ) >"$WT/.oc-tests.log" 2>&1
+  TRC=$?
+  set -e
+  tail -15 "$WT/.oc-tests.log" >&2
+  if [[ $TRC -eq 0 ]]; then TESTS_OK="pass"; echo "✔ TESTS GREEN" >&2
+  else TESTS_OK="fail"; echo "✗ TESTS RED (code $TRC, log: $WT/.oc-tests.log)" >&2; fi
+fi
+
+echo >&2
+if [[ "$TESTS_OK" == "fail" && $KEEP -eq 0 ]]; then
+  echo "branch $BRANCH kept for inspection (tests are red, no auto-merge)" >&2
+fi
+cat >&2 <<EOF
+
+branch:   $BRANCH
+worktree: $WT
+diff:     git -C $REPO diff $BASE_SHA..$BRANCH
+accept:   git -C $REPO merge --no-ff $BRANCH
+drop:     (cd $REPO && oc-code --drop $BRANCH)
+EOF
+
+[[ "$TESTS_OK" == "fail" ]] && exit 1
+exit 0

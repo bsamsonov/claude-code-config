@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# oc-research — runs a research subagent on OpenCode Go (a separate
+# subscription, so it does not burn the Claude window).
+#
+#   oc-research "research topic"
+#   oc-research -m glm-5.2 -o research/foo.md "topic"
+#   oc-research -m deepseek-v4-flash -d /path/to/project "topic"
+#
+# Options:
+#   -m MODEL   model without the provider prefix (default: qwen3.7-plus)
+#              tiers as of 2026-09 (see skills/research-via-opencode):
+#              harvest (nearly free): mimo-v2.6-flash, deepseek-v4.1-flash
+#              workhorse:    qwen3.7-plus, hy3, gpt-6-luna, minimax-m3
+#              hard topic:   kimi-k2.6, deepseek-v4-pro, glm-5.2
+#              NOT for research: kimi-k3, qwen3.8-max, grok-4.7 (~25-55 runs/month)
+#   -o FILE    output file (default: research/<slug>.md)
+#   -d DIR     working directory (default: current)
+#   -v VARIANT reasoning effort: minimal|high|max
+#   -q         quiet: only the tail of the agent's answer
+set -euo pipefail
+
+MODEL="qwen3.7-plus"
+OUT=""
+DIR="$PWD"
+VARIANT=""
+QUIET=0
+
+while getopts "m:o:d:v:qh" opt; do
+  case "$opt" in
+    m) MODEL="$OPTARG" ;;
+    o) OUT="$OPTARG" ;;
+    d) DIR="$OPTARG" ;;
+    v) VARIANT="$OPTARG" ;;
+    q) QUIET=1 ;;
+    h) sed -n '2,20p' "$0"; exit 0 ;;
+    *) exit 2 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+TOPIC="${*:-}"
+if [[ -z "$TOPIC" ]]; then
+  echo "usage: oc-research [-m model] [-o out.md] [-d dir] [-v variant] \"topic\"" >&2
+  exit 2
+fi
+
+if [[ -z "$OUT" ]]; then
+  SLUG=$(echo "$TOPIC" \
+    | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' \
+    | cut -c1-60)
+  [[ -z "$SLUG" ]] && SLUG="research"
+  OUT="research/${SLUG}.md"
+fi
+
+mkdir -p "$DIR/$(dirname "$OUT")"
+
+PROMPT="Research topic: ${TOPIC}
+
+Write the result to the file: ${OUT}
+Follow the instructions of your role (researcher). Start with a plan of sub-questions."
+
+LOG="$DIR/${OUT%.md}.log"
+
+echo "▶ opencode-go/${MODEL} → ${DIR}/${OUT}" >&2
+
+set +e
+if [[ -n "$VARIANT" ]]; then
+  opencode run --agent researcher -m "opencode-go/${MODEL}" --variant "$VARIANT" \
+    --dir "$DIR" "$PROMPT" >"$LOG" 2>&1
+else
+  opencode run --agent researcher -m "opencode-go/${MODEL}" \
+    --dir "$DIR" "$PROMPT" >"$LOG" 2>&1
+fi
+RC=$?
+set -e
+
+if [[ $QUIET -eq 1 ]]; then
+  tail -25 "$LOG"
+else
+  cat "$LOG"
+fi
+
+if [[ $RC -ne 0 ]]; then
+  echo "✗ opencode exited with $RC (log: $LOG)" >&2
+  exit $RC
+fi
+
+if [[ -f "$DIR/$OUT" ]]; then
+  echo "✔ done: $DIR/$OUT ($(wc -l <"$DIR/$OUT") lines)" >&2
+else
+  echo "⚠ $DIR/$OUT was not created — see $LOG" >&2
+fi

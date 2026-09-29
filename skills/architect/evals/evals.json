@@ -1,0 +1,23 @@
+{
+  "skill_name": "architect",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "we're building a real-time analytics dashboard for our SaaS product. currently we have about 50k users but expecting to grow to 500k in the next year. the data comes from user events (clicks, page views, purchases) and we need to show aggregated metrics updated every few seconds. our backend is Python/Django with PostgreSQL. what's the best approach for handling this real-time data pipeline? i'm thinking maybe Kafka or Redis Streams but not sure",
+      "expected_output": "Architecture comparison document evaluating real-time data pipeline options (Kafka, Redis Streams, alternatives), with recommendation based on scale requirements, team skills (Python/Django), and operational complexity. Should include data flow diagram and tradeoff analysis.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "our mobile app (React Native) needs offline support - users should be able to create and edit documents even without internet, then sync when they're back online. we're using Firebase for the backend right now. how should we architect the offline sync? worried about conflicts when multiple devices edit the same doc",
+      "expected_output": "Offline-first architecture design addressing conflict resolution strategies (CRDTs, operational transforms, last-write-wins), local storage options, sync protocols, and how to integrate with existing Firebase backend. Should discuss tradeoffs of different conflict resolution approaches.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "i need to add a search feature to our e-commerce site. we have about 100k products with various attributes (name, description, category, price, tags, etc). users should be able to filter by multiple criteria and get results fast. should we use Elasticsearch, PostgreSQL full-text search, or something else? our stack is Node.js + PostgreSQL",
+      "expected_output": "Technology comparison for search implementation (Elasticsearch vs PostgreSQL full-text vs alternatives like Typesense/Meilisearch), considering scale (100k products), query complexity, operational overhead, and existing stack (Node.js/PostgreSQL). Should include recommendation with reasoning.",
+      "files": []
+    }
+  ]
+}

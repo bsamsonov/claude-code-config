@@ -1,0 +1,13 @@
+# Never commit anything that Claude Code writes at runtime
+.credentials.json
+settings.local.json
+history.jsonl
+projects/
+sessions/
+*.log
+*.state
+.env
+*.tar.gz
+*.zip
+__pycache__/
+.DS_Store

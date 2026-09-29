@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# cc-cost — approximate Claude Code token and $ statistics.
+# Thin wrapper over scripts/cc_cost.py; all arguments are passed through.
+#
+# Examples:
+#   cc-cost                  # default: last day, broken down by model
+#   cc-cost --since 7d --by-skill
+#   cc-cost --project my-repo --by-skill
+#   cc-cost --top 10
+set -euo pipefail
+
+SCRIPT="${CC_COST_PY:-$HOME/.claude/scripts/cc_cost.py}"
+[[ -f "$SCRIPT" ]] || { echo "cc-cost: $SCRIPT not found (set CC_COST_PY)" >&2; exit 1; }
+
+# No arguments: one-day summary with a per-model breakdown.
+[[ $# -eq 0 ]] && set -- --since 1d --by-model
+
+exec python3 "$SCRIPT" "$@"

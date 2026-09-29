@@ -1,0 +1,132 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Global: cautious mode. Specific relaxations live at the agent level.
+  "permission": {
+    "webfetch": "allow",
+    "bash": {
+      "*": "ask",
+      "ls *": "allow",
+      "cat *": "allow",
+      "grep *": "allow",
+      "rg *": "allow",
+      "find *": "allow",
+      "mkdir *": "allow",
+      "git status": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "rm *": "deny",
+      "sudo *": "deny",
+      "git push*": "deny",
+      "git commit*": "deny"
+    }
+  },
+
+  "agent": {
+    // Research subagent: reads the web, writes only markdown under research/ and docs/.
+    // Headless: opencode run --agent researcher -m opencode-go/<model> "..."
+    // (see bin/oc-research). Every permission resolves to allow/deny — a headless
+    // run has nowhere to render an "ask" prompt and would hang forever.
+    "researcher": {
+      "description": "Web research written to markdown. Never touches source code.",
+      "mode": "all",
+      "temperature": 0.3,
+      "prompt": "{file:./prompts/researcher.md}",
+      "tools": {
+        "websearch": true,
+        "webfetch": true,
+        "write": true,
+        "edit": true,
+        "read": true,
+        "grep": true,
+        "glob": true,
+        "bash": true,
+        "todowrite": true,
+        "apply_patch": false
+      },
+      "permission": {
+        "webfetch": "allow",
+        "edit": {
+          "*": "deny",
+          "research/**": "allow",
+          "docs/**": "allow",
+          "*.md": "allow"
+        },
+        "bash": {
+          "*": "deny",
+          "ls *": "allow",
+          "mkdir *": "allow",
+          "cat *": "allow",
+          "rg *": "allow"
+        }
+      }
+    },
+
+    // Coder subagent: edits code and runs tests. RUN ONLY THROUGH bin/oc-code, which
+    // creates a disposable git worktree. Edit rights are "*" precisely because the
+    // working directory is a throwaway copy of the repository, not the live project.
+    // NOTE: the worktree isolates consequences, not privileges — an allowed test
+    // runner executes arbitrary project code (conftest.py and friends).
+    "coder": {
+      "description": "Minimal code change in a disposable git worktree, proven by tests.",
+      "mode": "all",
+      "temperature": 0.1,
+      "prompt": "{file:./prompts/coder.md}",
+      "tools": {
+        "websearch": true,
+        "webfetch": true,
+        "write": true,
+        "edit": true,
+        "read": true,
+        "grep": true,
+        "glob": true,
+        "bash": true,
+        "todowrite": true,
+        "apply_patch": true
+      },
+      "permission": {
+        "webfetch": "allow",
+        // The directory is disposable — write freely inside it.
+        "edit": { "*": "allow" },
+        "bash": {
+          "*": "deny",
+          // Exploration
+          "ls *": "allow",
+          "cat *": "allow",
+          "rg *": "allow",
+          "find *": "allow",
+          "mkdir *": "allow",
+          "sed -n *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "wc *": "allow",
+          // Python stack (uv / pytest / linters)
+          "pytest*": "allow",
+          "python -m pytest*": "allow",
+          "python3 -m pytest*": "allow",
+          "uv run*": "allow",
+          "uv sync*": "allow",
+          "uv pip*": "allow",
+          "ruff*": "allow",
+          "mypy*": "allow",
+          "black*": "allow",
+          // Git: look and commit inside the worktree — yes; publish — no
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git add*": "allow",
+          "git commit*": "allow",
+          "git push*": "deny",
+          "git remote*": "deny",
+          "git worktree*": "deny",
+          "git config*": "deny",
+          "rm *": "deny",
+          "sudo *": "deny",
+          "curl *": "deny",
+          "wget *": "deny"
+        }
+      }
+    }
+  }
+}

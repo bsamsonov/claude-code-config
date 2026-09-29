@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# agent-context — measures the static input-token cost of a Claude Code agent.
+# Sends one minimal request to the agent (Haiku by default, so the probe is cheap)
+# and prints total input = input + cache_read + cache_creation.
+#
+# This is the number you pay on EVERY spawn of that agent before it does any work:
+# system prompt + tool descriptions + MCP servers. Use it to keep agents narrow.
+#
+# Usage:
+#   agent-context <agent-name> [model]
+# Examples:
+#   agent-context plain-agent
+#   agent-context codebase-agent
+#   agent-context general-purpose sonnet
+set -euo pipefail
+
+if [[ $# -lt 1 || "$1" == "-h" || "$1" == "--help" ]]; then
+  echo "Usage: agent-context <agent-name> [model]" >&2
+  exit 1
+fi
+
+AGENT="$1"
+MODEL="${2:-haiku}"
+
+JSON="$(claude -p --model "$MODEL" --agent "$AGENT" --output-format json "Reply with one word: ok" 2>&1)" || {
+  echo "claude failed to start. Output:" >&2
+  echo "$JSON" >&2
+  exit 1
+}
+
+echo "$JSON" | python3 -c '
+import sys, json
+raw = sys.stdin.read()
+try:
+    d = json.loads(raw)
+except Exception:
+    print("Could not parse JSON. Raw output:", file=sys.stderr)
+    print(raw[:500], file=sys.stderr)
+    sys.exit(1)
+u = d.get("usage", {}) or {}
+i  = u.get("input_tokens", 0) or 0
+cr = u.get("cache_read_input_tokens", 0) or 0
+cc = u.get("cache_creation_input_tokens", 0) or 0
+out = u.get("output_tokens", 0) or 0
+print(f"agent:         {sys.argv[1]}")
+print(f"model:         {sys.argv[2]}")
+print(f"total input  ~ {i + cr + cc}")
+print(f"  input:          {i}")
+print(f"  cache_read:     {cr}")
+print(f"  cache_creation: {cc}")
+print(f"  output:         {out}")
+' "$AGENT" "$MODEL"
