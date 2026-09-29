@@ -108,7 +108,7 @@ A table of contents of all documents with descriptions + 3-5 key conclusions + d
 
 ## Step 5 — Google Drive (optional)
 
-If the [`gdrive-upload`](https://github.com/borissamsonov77/gdrive-upload-skill) skill is
+If the [`gdrive-upload`](https://github.com/bsamsonov/gdrive-upload-skill) skill is
 installed, upload the results **without asking** (unless the user opted out in advance):
 research folder → `gdrive:AI_Projects/<folder basename>`.
 

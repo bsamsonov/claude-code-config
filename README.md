@@ -115,13 +115,13 @@ With it, AI topics come back explained through distributed-systems analogies, fo
 system design and production rather than data science, with a gap analysis, a learning
 path and a reading list attached.
 
-Published separately: [gdrive-upload-skill](https://github.com/borissamsonov77/gdrive-upload-skill)
+Published separately: [gdrive-upload-skill](https://github.com/bsamsonov/gdrive-upload-skill)
 — Markdown folder → Google Docs via pandoc + rclone.
 
 ## Install
 
 ```bash
-git clone https://github.com/borissamsonov77/claude-code-config.git
+git clone https://github.com/bsamsonov/claude-code-config.git
 cd claude-code-config
 ./install.sh --dry-run        # see what would be linked
 ./install.sh                  # add --with-opencode for the OpenCode agents
