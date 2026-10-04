@@ -17,7 +17,7 @@ subscription it is not a bill, but it shows precisely where the budget goes.
   - `cache_read_input_tokens` — **cREAD**: read from cache (a per-model rate, 2.5–10% of
     the input price as of 2026-09);
   - `server_tool_use.{web_search_requests,web_fetch_requests}`.
-- `message.model` → model family (opus / sonnet / haiku / fable).
+- `message.model` → price group by model version (e.g. `opus-5.5`, `opus`, `sonnet-5`, `fable-5.1`), see `PRICING` / `MODEL_RULES`.
 - `attributionSkill` — which subagent or skill produced the record. This is what makes
   per-skill accounting possible.
 - `isSidechain` — true for nested subagent turns.

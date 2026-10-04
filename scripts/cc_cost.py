@@ -25,16 +25,28 @@ import json, sys, glob, os, time, argparse
 from datetime import datetime
 from collections import defaultdict
 
-# $ per 1M tokens: (input, output, cache read). As of 2026-09, claude.com/pricing.
-# Records are priced by model FAMILY at current rates, so sessions of older
-# versions (e.g. Opus 4.x) are an approximation.
+# $ per 1M tokens: (input, output, cache read). Cache writes are multipliers
+# of the input rate. As of 2026-10, platform.claude.com/docs/en/about-claude/pricing.
+# The key is a price group; a model is matched by a substring of its ID.
 PRICING = {
-    "fable":  (10.0, 50.0, 0.25),   # Fable 5.1
-    "opus":   (4.0,  20.0, 0.20),   # Opus 5.5
-    "sonnet": (2.0,  10.0, 0.20),   # Sonnet 5.5
-    "haiku":  (1.0,   5.0, 0.10),   # Haiku 4.5
+    "fable-5.1": (10.0, 50.0, 0.25),  # Fable 5.1 / Mythos 5.1 (cache read 0.025x)
+    "fable":     (10.0, 50.0, 1.00),  # Fable 5 / Mythos 5
+    "opus-5.5":  (4.0,  20.0, 0.20),  # Opus 5.5 (cache read 0.05x)
+    "opus":      (5.0,  25.0, 0.50),  # Opus 4.5 ... 5
+    "opus-4.1":  (15.0, 75.0, 1.50),  # Opus 4 / 4.1
+    "sonnet-5":  (2.0,  10.0, 0.20),  # Sonnet 5 / 5.5
+    "sonnet":    (3.0,  15.0, 0.30),  # Sonnet 4 ... 4.6
+    "haiku":     (1.0,   5.0, 0.10),  # Haiku 4.5
 }
-# Cache writes are priced as multipliers of the input rate.
+MODEL_RULES = [  # (model ID substring, PRICING key), most specific first
+    ("fable-5-1", "fable-5.1"), ("mythos-5-1", "fable-5.1"),
+    ("fable", "fable"), ("mythos", "fable"),
+    ("opus-5-5", "opus-5.5"),
+    ("opus-4-1", "opus-4.1"), ("opus-4-2025", "opus-4.1"),  # Opus 4.1 / Opus 4
+    ("opus", "opus"),
+    ("sonnet-5", "sonnet-5"), ("sonnet", "sonnet"),
+    ("haiku", "haiku"),
+]
 CACHE_WRITE_5M = 1.25
 CACHE_WRITE_1H = 2.0
 # Server tools ($ per request), approximately:
@@ -42,11 +54,10 @@ WEB_SEARCH_PER_REQ = 10.0 / 1000      # ~$10 per 1000 searches
 WEB_FETCH_PER_REQ  = 0.0              # usually billed as context tokens only
 
 def model_family(m: str) -> str:
+    """Model ID -> PRICING key (price group)."""
     m = (m or "").lower()
-    if "fable" in m or "mythos" in m: return "fable"
-    if "opus" in m:   return "opus"
-    if "sonnet" in m: return "sonnet"
-    if "haiku" in m:  return "haiku"
+    for sub, key in MODEL_RULES:
+        if sub in m: return key
     return "sonnet"  # default
 
 def parse_since(s: str | None) -> float:
@@ -179,7 +190,7 @@ def main():
     if a.by_model:
         print("\nBy model:")
         for fam,acc in sorted(grand.items(), key=lambda kv:-kv[1].cost(kv[0])):
-            print(f"  {fam:<8} {acc.tokens:>14,} tok  ${acc.cost(fam):>9.2f}  "
+            print(f"  {fam:<10} {acc.tokens:>14,} tok  ${acc.cost(fam):>9.2f}  "
                   f"(in={acc.inp:,} out={acc.out:,} cacheW={acc.cw5+acc.cw1:,} "
                   f"cacheR={acc.cr:,} calls={acc.calls})")
         ws = sum(x.web_s for x in grand.values()); wf=sum(x.web_f for x in grand.values())
