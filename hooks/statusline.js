@@ -3,8 +3,8 @@
 /**
  * Claude Code status line.
  *
- * Renders: model | directory | context | prompt cache (+TTL) | 5h limit | 7d limit |
- * uncommitted changes + git branch
+ * Renders: model + effort | directory | context | prompt cache (+TTL) | 5h limit |
+ * 7d limit | uncommitted changes + git branch | rc (green, when Remote Control is on)
  * and mirrors the subscription rate limits into a per-session bridge file,
  * because `rate_limits` is delivered to the status line only — hooks and
  * skills read it back from $TMPDIR/claude-limits-<session_id>.json.
@@ -78,6 +78,14 @@ function modelSegment(model) {
   const size = m[3] && m[3].match(/(\d+)\s*([KMG])/i);
   if (size) short += ` (${size[1]}${size[2].toLowerCase()})`;
   return dim(short);
+}
+
+/** Reasoning effort "high" — colored by cost; null when the model has no effort parameter. */
+const EFFORT_COLORS = { low: '2', medium: '2;36', high: '36', xhigh: '35', max: '1;35' };
+function effortSegment(effort) {
+  const level = effort && effort.level;
+  if (!level) return null;
+  return paint(EFFORT_COLORS[level] || '2', String(level));
 }
 
 /** Context usage "120k/1M", or "12%" when only the percentage is known. */
@@ -246,6 +254,32 @@ function gitSegment(cwd) {
   return changes ? `${changes} ${head}` : head;
 }
 
+/**
+ * Green "rc" when Remote Control is on. stdin has no such field, so read the
+ * session registry: ~/.claude/sessions/<pid>.json gets "bridgeSessionId" while
+ * the session is bridged. Undocumented — if the format changes, "rc" just disappears.
+ */
+function remoteControlSegment(sessionId) {
+  if (!sessionId) return null;
+  const dir = path.join(os.homedir(), '.claude', 'sessions');
+  let names;
+  try {
+    names = fs.readdirSync(dir);
+  } catch {
+    return null;
+  }
+  for (const name of names) {
+    if (!/^\d+\.json$/.test(name)) continue;
+    try {
+      const rec = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
+      if (rec.sessionId === sessionId) return rec.bridgeSessionId ? paint('32', 'rc') : null;
+    } catch {
+      /* half-written or foreign file — skip */
+    }
+  }
+  return null;
+}
+
 /** Atomic write, so a concurrent reader never sees a half-written file. */
 function writeBridge(file, payload) {
   const tmp = `${file}.${process.pid}.tmp`;
@@ -306,13 +340,14 @@ function render(data) {
   const limits = data.rate_limits || {};
   const dir = path.basename(cwd);
   const segments = [
-    modelSegment(data.model),
+    [modelSegment(data.model), effortSegment(data.effort)].filter(Boolean).join(' '),
     dim(dir),
     contextSegment(data.context_window),
     cacheSegment(data.context_window && data.context_window.current_usage, data.transcript_path),
     limitSegment('5h', limits.five_hour),
     limitSegment('7d', limits.seven_day),
     gitSegment(cwd),
+    remoteControlSegment(data.session_id),
   ];
   publishLimits(data, data.rate_limits);
   let line = segments.filter(Boolean).join(SEPARATOR);
