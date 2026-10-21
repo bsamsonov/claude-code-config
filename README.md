@@ -25,6 +25,12 @@ Fail-open, per-session, atomic writes. Full design write-up:
 [docs/window-guard.md](docs/window-guard.md) ·
 code: [hooks/statusline.js](hooks/statusline.js), [hooks/window-guard.js](hooks/window-guard.js)
 
+The status line itself shows model and reasoning effort, context use, prompt-cache hit
+ratio with the time left before the cache expires, both rate-limit windows, uncommitted
+changes with the git branch, and a green `rc` while Remote Control is on. It is also
+published as a standalone single file:
+[claude-code-statusline](https://github.com/bsamsonov/claude-code-statusline).
+
 ### 2. Resuming after the reset
 [skills/resume-after-window](skills/resume-after-window/SKILL.md) reads the reset time from
 the same bridge and parks the session on a background `sleep` that wakes it up three
@@ -116,8 +122,14 @@ With it, AI topics come back explained through distributed-systems analogies, fo
 system design and production rather than data science, with a gap analysis, a learning
 path and a reading list attached.
 
-Published separately: [gdrive-upload-skill](https://github.com/bsamsonov/gdrive-upload-skill)
-— Markdown folder → Google Docs via pandoc + rclone.
+Published separately:
+
+- [claude-code-statusline](https://github.com/bsamsonov/claude-code-statusline) — the status
+  line above as a standalone single file;
+- [gdrive-upload-skill](https://github.com/bsamsonov/gdrive-upload-skill) — Markdown folder →
+  Google Docs via pandoc + rclone;
+- [mobile-local-dictation](https://github.com/bsamsonov/mobile-local-dictation) — an Android
+  voice keyboard that transcribes fully on-device; handy for dictating prompts on the go.
 
 ## Install
 
@@ -141,6 +153,11 @@ and `systemd-run`); the hooks and scripts are plain Node.js / Python / bash.
 
 - [context7](https://github.com/upstash/context7) and `skill-creator` from the official plugin marketplace
 - [andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) — coding-behaviour guidelines
+- [mattpocock/skills](https://github.com/mattpocock/skills) — `tdd`, `diagnosing-bugs`,
+  `domain-modeling`, `codebase-design`, `code-review`, `grilling`
+- [humanizer](https://github.com/blader/humanizer) and
+  [humanizer-ru](https://github.com/ilyautov/humanizer-ru) — removing AI tells from English
+  and Russian text (I run locally narrowed copies)
 
 `hooks/statusline.js` is derived from
 [ilia-pluzhnikov/claude-code-statusline](https://github.com/ilia-pluzhnikov/claude-code-statusline)
