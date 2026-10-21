@@ -140,6 +140,10 @@ and `systemd-run`); the hooks and scripts are plain Node.js / Python / bash.
 - [context7](https://github.com/upstash/context7) and `skill-creator` from the official plugin marketplace
 - [andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) — coding-behaviour guidelines
 
+`hooks/statusline.js` is derived from
+[ilia-pluzhnikov/claude-code-statusline](https://github.com/ilia-pluzhnikov/claude-code-statusline)
+(MIT, Ilya Pluzhnikov). Standalone version: [claude-code-statusline](https://github.com/bsamsonov/claude-code-statusline).
+
 ## License
 
 [MIT](LICENSE)

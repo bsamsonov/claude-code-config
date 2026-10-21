@@ -3,6 +3,9 @@
 /**
  * Claude Code status line.
  *
+ * Based on https://github.com/ilia-pluzhnikov/claude-code-statusline
+ * (MIT, Copyright (c) 2026 Ilya Pluzhnikov).
+ *
  * Renders: model + effort | directory | context | prompt cache (+TTL) | 5h limit |
  * 7d limit | uncommitted changes + git branch | rc (green, when Remote Control is on)
  * and mirrors the subscription rate limits into a per-session bridge file,
