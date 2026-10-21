@@ -142,7 +142,7 @@ and `systemd-run`); the hooks and scripts are plain Node.js / Python / bash.
 
 `hooks/statusline.js` is derived from
 [ilia-pluzhnikov/claude-code-statusline](https://github.com/ilia-pluzhnikov/claude-code-statusline)
-(MIT, Ilya Pluzhnikov). Standalone version: [claude-code-statusline](https://github.com/bsamsonov/claude-code-statusline).
+(MIT, Ilya Pluzhnikov).
 
 ## License
 
