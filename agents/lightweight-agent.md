@@ -1,7 +1,7 @@
 ---
 name: "lightweight-agent"
 description: "Lightweight web search + file processing agent. The default subagent for research and writing documents: no shell, no MCP, no nested subagents."
-tools: WebSearch, WebFetch, Read, Write, Edit
+tools: WebSearch, WebFetch, Read, Write, Edit, Glob
 model: sonnet
 color: cyan
 ---

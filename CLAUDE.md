@@ -6,7 +6,7 @@ tool is a direct cost against the window.
 
 The ladder:
 
-1. `lightweight-agent` (WebSearch, WebFetch, Read, Write, Edit) — web research,
+1. `lightweight-agent` (WebSearch, WebFetch, Read, Write, Edit, Glob) — web research,
    gathering information, processing and writing files. The default choice.
 2. `codebase-agent` (Bash, Read, Write, Edit, Grep, Glob) — work inside the repository:
    reading code and git history, searching the project, writing documentation. No web.
