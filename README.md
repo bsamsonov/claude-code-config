@@ -27,9 +27,7 @@ code: [hooks/statusline.js](hooks/statusline.js), [hooks/window-guard.js](hooks/
 
 The status line itself shows model and reasoning effort, context use, prompt-cache hit
 ratio with the time left before the cache expires, both rate-limit windows, uncommitted
-changes with the git branch, and a green `rc` while Remote Control is on. It is also
-published as a standalone single file:
-[claude-code-statusline](https://github.com/bsamsonov/claude-code-statusline).
+changes with the git branch, and a green `rc` while Remote Control is on.
 
 ### 2. Resuming after the reset
 [skills/resume-after-window](skills/resume-after-window/SKILL.md) reads the reset time from
@@ -124,8 +122,6 @@ path and a reading list attached.
 
 Published separately:
 
-- [claude-code-statusline](https://github.com/bsamsonov/claude-code-statusline) — the status
-  line above as a standalone single file;
 - [gdrive-upload-skill](https://github.com/bsamsonov/gdrive-upload-skill) — Markdown folder →
   Google Docs via pandoc + rclone;
 - [mobile-local-dictation](https://github.com/bsamsonov/mobile-local-dictation) — an Android
