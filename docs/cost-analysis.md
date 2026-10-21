@@ -33,11 +33,27 @@ cc-cost --since 7d --by-model              # which models cost what
 cc-cost --since 7d --by-skill              # which subagent/skill costs what
 cc-cost --skill deep-research              # where a skill lives, by project
 cc-cost --project my-repo --by-skill       # which subagents work in one project
+cc-cost --since 7d --by-effort             # medium vs high: effort x model, $/session, $/prompt
 cc-cost --top 10                           # the most expensive sessions
 ```
 
-`--since` filters by each record's own timestamp; file mtime is only a coarse
+The project table shows readable names (the transcript's real `cwd`), a `RUNS` column
+(main sessions + subagent runs + external runs) and `PROMPTS` (real user prompts, no
+tool results or slash commands). Projects that spawned subagents get gray subrows that
+split their cost into main sessions and subagents.
+
+`--since` takes `30m`, `2h`, `7d`, `2w` and filters by each record's own timestamp; file mtime is only a coarse
 pre-filter, so `rsync`/`touch`/resumed sessions don't distort the result.
+
+**Deduplication.** One API response is written to the transcript as several lines (one per
+content block: thinking, text, tool use), each carrying a copy of the same `usage`.
+Summing them overstates spend roughly twofold, so records are deduplicated by
+`message.id`, keeping the line with the largest `output_tokens`.
+
+**Runs without a transcript.** `claude -p --output-format json --no-session-persistence`
+(CI jobs, review pipelines) leaves only its final result JSON. Point
+`CC_COST_EXTRA_GLOBS` (`:`-separated globs) at those logs and they show up as an
+"external claude -p" subrow of their project and in `--by-model`.
 
 Note: Claude Code deletes transcripts older than `cleanupPeriodDays` (default 30), so
 history beyond that is gone unless you raise the setting or back the folder up.
@@ -45,7 +61,8 @@ history beyond that is gone unless you raise the setting or back the folder up.
 ## What the data showed
 
 A breakdown of all my sessions over the available 30-day history, by share of cost
-(measured in mid-2026 at the prices of that time):
+(measured in mid-2026 at the prices of that time, with an early version of the script that
+did not yet deduplicate records — absolute numbers were inflated, the shares are indicative):
 
 | Component | Share of $ | What it is |
 |---|---|---|

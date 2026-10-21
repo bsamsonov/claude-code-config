@@ -3,8 +3,11 @@
 # Thin wrapper over scripts/cc_cost.py; all arguments are passed through.
 #
 # Examples:
-#   cc-cost                  # default: last day, broken down by model
+#   cc-cost                  # default: summary for the last day (= --since 1d)
+#   cc-cost --since 30m      # last 30 minutes (m/h/d/w)
+#   cc-cost --since 7d --by-model
 #   cc-cost --since 7d --by-skill
+#   cc-cost --since 7d --by-effort
 #   cc-cost --project my-repo --by-skill
 #   cc-cost --top 10
 set -euo pipefail
@@ -12,7 +15,7 @@ set -euo pipefail
 SCRIPT="${CC_COST_PY:-$HOME/.claude/scripts/cc_cost.py}"
 [[ -f "$SCRIPT" ]] || { echo "cc-cost: $SCRIPT not found (set CC_COST_PY)" >&2; exit 1; }
 
-# No arguments: one-day summary with a per-model breakdown.
-[[ $# -eq 0 ]] && set -- --since 1d --by-model
+# No arguments: one-day summary by project (per-model breakdown only with --by-model).
+[[ $# -eq 0 ]] && set -- --since 1d
 
 exec python3 "$SCRIPT" "$@"
