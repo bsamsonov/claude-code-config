@@ -102,6 +102,7 @@ The repository mirrors `~/.claude`:
 | [poc-portfolio-prep](skills/poc-portfolio-prep/SKILL.md) | Turn a messy POC into a public portfolio repo, with hard gates |
 | [move-project](skills/move-project/SKILL.md) | Move a project folder together with its Claude history and memory |
 | [translate-ru](skills/translate-ru/SKILL.md) | Technical translation into Russian that never breaks Markdown or code |
+| [instagram-transcript](skills/instagram-transcript/SKILL.md) | Instagram Reels → transcripts with yt-dlp + local whisper.cpp: one reel, or a whole profile politely in the background |
 
 **Personalising research.** `deep-research` has a *Reader profile* block at the top; while
 it holds placeholders the skill writes for a general technical reader. Mine looks like this:
@@ -131,7 +132,8 @@ The installer only creates symlinks and never overwrites existing files. `settin
 and `CLAUDE.md` are deliberately left for you to merge by hand from the examples.
 
 Requirements: Claude Code, Node.js (hooks, status line), Python 3 (cost analyser).
-Optional: `opencode` with an OpenCode Go subscription, `gh`.
+Optional: `opencode` with an OpenCode Go subscription, `gh`; `uv`, `ffmpeg` and a
+[whisper.cpp](https://github.com/ggml-org/whisper.cpp) build for `instagram-transcript`.
 Linux only for the scheduling parts (`/wake`, `resume-after-window` use GNU `date -d`
 and `systemd-run`); the hooks and scripts are plain Node.js / Python / bash.
 
